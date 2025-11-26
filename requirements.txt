@@ -1,4 +1,8 @@
-uvicorn
 fastapi
+uvicorn
 pandas
+numpy
+scipy
 pgmpy
+networkx
+pydantic
