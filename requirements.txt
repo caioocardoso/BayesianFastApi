@@ -1,4 +1,2 @@
 uvicorn
 fastapi
-pandas
-pgmpy
