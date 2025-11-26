@@ -1,135 +1,66 @@
 import pickle
-import pandas as pd
-from pgmpy.inference import VariableElimination
+import networkx as nx
 
 class RecommendationEngine:
     def __init__(self, model_path="bayesian_network_model.pkl"):
-        """
-        Carrega o modelo salvo e prepara o motor de inferência.
-        Isso deve rodar apenas UMA vez quando a API inicia.
-        """
-        print(f"Carregando modelo de: {model_path}...")
+        print(f"Carregando topologia de: {model_path}...")
         try:
             with open(model_path, "rb") as f:
                 self.model = pickle.load(f)
-            
-            # Validação básica para garantir que o modelo está ok
-            if not hasattr(self.model, 'nodes'):
-                raise Exception("O arquivo não contém um modelo válido.")
-                
-            # Inicializa o algoritmo de eliminação de variáveis (o cérebro matemático)
-            self.infer = VariableElimination(self.model)
-            print("Modelo carregado e motor de inferência pronto!")
-            
-            # Lista de nós disponíveis para consulta (debug)
-            print(f"Nós disponíveis: {self.model.nodes()}")
-            
+            # Não carregamos mais VariableElimination (pesado). 
+            # Só precisamos do grafo.
+            self.all_nodes = set(self.model.nodes())
+            print(f"Grafo carregado! Nós: {len(self.all_nodes)}")
         except Exception as e:
-            print(f"Erro crítico ao carregar modelo: {e}")
+            print(f"ERRO CRÍTICO: {e}")
             self.model = None
 
-    def predict_impact(self, current_evidence, target_variable, intervention_variable, desired_state=1):
+    def get_holistic_recommendations(self, user_profile):
         """
-        Calcula o impacto de mudar UM hábito específico.
-        
-        Args:
-            current_evidence (dict): O estado atual do usuário (ex: {'stress': 1})
-            target_variable (str): O que queremos melhorar (ex: 'sleep')
-            intervention_variable (str): O hábito a ser mudado (ex: 'exercise')
-            desired_state (int): O estado "ideal" do hábito (1 = Bom/Presente)
-        
-        Returns:
-            float: A diferença de probabilidade (Impacto).
+        Lógica Simplificada:
+        1. Olha o que está ruim (valor 0).
+        2. Olha no grafo quem causa isso (Predecessores/Pais).
+        3. Recomenda os pais.
         """
-        if self.model is None: return 0.0
+        if not self.model:
+            return []
 
-        # 1. Probabilidade Base: Como o usuário está HOJE?
-        # Removemos o hábito que vamos testar da evidência atual para não enviesar
-        base_evidence = {k:v for k,v in current_evidence.items() if k != intervention_variable}
-        
-        try:
-            base_prob_dist = self.infer.query([target_variable], evidence=base_evidence)
-            # Pegamos a probabilidade do estado 1 (Bom/Melhorado)
-            base_prob = base_prob_dist.values[1] 
-        except:
-            # Se der erro (ex: evidência impossível), retorna 0
-            return 0.0
-
-        # 2. Probabilidade Simulada: E se o usuário adotar o hábito?
-        simulated_evidence = base_evidence.copy()
-        simulated_evidence[intervention_variable] = desired_state # Força o hábito para "Bom"
-        
-        try:
-            new_prob_dist = self.infer.query([target_variable], evidence=simulated_evidence)
-            new_prob = new_prob_dist.values[1]
-        except:
-            return 0.0
-
-        # 3. O Impacto é a diferença
-        impact = new_prob - base_prob
-        return impact
-
-    def get_recommendations(self, user_responses):
-        """
-        Gera a lista final de recomendações ordenadas.
-        """
-        # Mapeia as respostas do formulário para os nomes EXATOS dos nós da sua rede
-        # (Você precisa ajustar isso baseados nos nós que vi no seu arquivo pkl)
-        evidence = {}
-        
-        # Exemplo de mapeamento (ajuste conforme seu formulário Android)
-        # Se o usuário disse que come mal, entra como 0. Se come bem, 1.
-        if 'frutas_vegetais' in user_responses:
-            evidence['fruit and vegetable intake'] = user_responses['frutas_vegetais'] # 0 ou 1
-        if 'exercicio' in user_responses:
-            evidence['exercise'] = user_responses['exercicio']
-        
-        # O objetivo é melhorar o Sono? Ou a Saúde Subjetiva?
-        target = 'sleep' 
-        
-        # Lista de hábitos que seu app pode sugerir (devem existir no grafo)
-        # Baseado no seu arquivo, vi estes nomes:
-        possible_interventions = [
-            'exercise', 
-            'fruit and vegetable intake', 
-            'upf consumption', # Consumo de ultraprocessados
-            'alcohol consumption'
-        ]
-        
         recommendations = []
         
-        for habit in possible_interventions:
-            # Se o usuário já faz isso bem (estado 1), não precisa recomendar
-            if evidence.get(habit) == 1:
-                continue
-                
-            # Calcula impacto
-            impact = self.predict_impact(evidence, target, habit)
-            
-            if impact > 0.01: # Só recomenda se tiver impacto real (> 1%)
-                recommendations.append({
-                    "habit": habit,
-                    "score": round(impact * 100, 1), # Transformando em porcentagem
-                    "message": f"Melhorar '{habit}' pode aumentar sua qualidade de sono em {round(impact*100)}%."
-                })
+        # 1. Identificar "Dores" (Targets)
+        # O user_profile deve vir com chaves em Inglês (ex: "sleep", "exercise")
+        targets_to_improve = []
         
-        # Ordena do maior impacto para o menor
-        return sorted(recommendations, key=lambda x: x['score'], reverse=True)
+        # Guardamos o que o usuário já faz bem para não recomendar o óbvio
+        # Ex: Se ele já faz exercício, não recomende exercício só porque melhora o sono.
+        current_habits = set()
 
-# --- Exemplo de Uso (Teste Local) ---
-if __name__ == "__main__":
-    # Simula o servidor iniciando
-    engine = RecommendationEngine("bayesian_network_model.pkl")
-    
-    # Simula um usuário vindo do Android
-    # Ele não faz exercício (0) e come mal (0)
-    fake_user_data = {
-        'exercicio': 0, 
-        'frutas_vegetais': 0
-    }
-    
-    recs = engine.get_recommendations(fake_user_data)
-    
-    print("\n--- Recomendações para o Usuário ---")
-    for r in recs:
-        print(f"Hábito: {r['habit']} | Impacto: +{r['score']}% | {r['message']}")
+        for key, value in user_profile.items():
+            if key in self.all_nodes:
+                if value == 0: 
+                    targets_to_improve.append(key)
+                elif value == 1:
+                    current_habits.add(key)
+        
+        print(f"🔍 Buscando causas para: {targets_to_improve}")
+
+        # 2. Varredura Topológica (Pais Imediatos)
+        for target in targets_to_improve:
+            # Em grafos direcionados, 'predecessors' são os nós que apontam PARA o target.
+            # Causa -> Efeito. Logo, pegamos as Causas.
+            causes = list(self.model.predecessors(target))
+            
+            for habit in causes:
+                # Filtragem básica:
+                # 1. Não recomendar o que ele já faz (current_habits)
+                # 2. Não recomendar o próprio alvo (loop)
+                if habit not in current_habits and habit != target:
+                    
+                    # Adiciona recomendação
+                    recommendations.append({
+                        "area_focus": target,       # "Melhorar: sleep"
+                        "suggested_habit": habit,   # "Causa encontrada: exercise"
+                        "type": "Direct Relation"   # Apenas informativo
+                    })
+
+        return recommendations

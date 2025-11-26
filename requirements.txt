@@ -6,3 +6,4 @@ scipy
 pgmpy
 networkx
 pydantic
+networkx
