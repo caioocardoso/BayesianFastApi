@@ -14,10 +14,11 @@ class UserProfile(BaseModel):
 
 @app.post("/api/recommend")
 def get_health_advice(profile: UserProfile):
-    # Converte o objeto Pydantic para dict
-    user_data = profile.dict()
+    # # Converte o objeto Pydantic para dict
+    # user_data = profile.dict()
     
-    # Chama nosso motor
-    recommendations = engine.get_recommendations(user_data)
+    # # Chama nosso motor
+    # recommendations = engine.get_recommendations(user_data)
     
-    return {"recommendations": recommendations}
+    # return {"recommendations": recommendations}
+    return {"message": "Endpoint em construção"}
