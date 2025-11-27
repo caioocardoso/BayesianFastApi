@@ -1,3 +1,4 @@
+from typing import Dict
 from fastapi import FastAPI
 from pydantic import BaseModel
 from inference_engine import RecommendationEngine
@@ -9,7 +10,7 @@ app = FastAPI()
 engine = RecommendationEngine()
 
 class UserRequest(BaseModel):
-    profile: dict[str, int]
+    profile: Dict[str, int]
 
 @app.post("/api/recommend")
 def get_health_advice(user_req: UserRequest):
