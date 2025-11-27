@@ -66,6 +66,9 @@ def run_test():
         
         if response.status_code == 200:
             data = response.json()
+            
+            print(data)
+            
             recs = data.get("recommendations", [])
             
             # 4. A Prova dos Nove
