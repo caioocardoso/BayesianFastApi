@@ -7,3 +7,4 @@ pgmpy
 networkx
 pydantic
 networkx
+deep-translator

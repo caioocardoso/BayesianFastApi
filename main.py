@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from inference_engine import RecommendationEngine
+from translate_nodes import translate_nodes
 
 app = FastAPI()
 
@@ -19,4 +20,6 @@ def get_health_advice(user_req: UserRequest):
     # Chama nosso motor
     recommendations = engine.get_holistic_recommendations(user_data)
     
-    return {"recommendations": recommendations}
+    recommendations_translated = translate_nodes(recommendations)
+    
+    return {"recommendations": recommendations_translated}
