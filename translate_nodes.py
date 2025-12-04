@@ -7,31 +7,36 @@ SPECIAL_TERMS = {
     "grounding": "aterramento",
     "training": "treino",
     "workout": "exercício",
+    "exercise": "exercício",  # ← ADICIONAR
     "gut": "intestino",
     "sleep": "sono",
     "aging": "envelhecimento",
-    "dysbiosis": "disbiose"
+    "dysbiosis": "disbiose",
+    "direct relation": "relação direta",  # ← ADICIONAR
 }
 
 def translate_nodes(recommendations):
     translator = GoogleTranslator(source='en', target='pt')
+    translated_recs = []
     
     for rec in recommendations:
-        # Traduz os campos individuais
-        if rec["area_focus"] in SPECIAL_TERMS:
-            rec["area_focus"] = SPECIAL_TERMS[rec["area_focus"]]
-        else:
-            try:
-                rec["area_focus"] = translator.translate(rec["area_focus"])
-            except:
-                pass
-                
-        if rec["suggested_habit"] in SPECIAL_TERMS:
-            rec["suggested_habit"] = SPECIAL_TERMS[rec["suggested_habit"]]
-        else:
-            try:
-                rec["suggested_habit"] = translator.translate(rec["suggested_habit"])
-            except:
-                pass
+        translated_rec = {}
+        
+        # Traduz cada campo
+        for key, value in rec.items():
+            if isinstance(value, str):
+                # Verifica primeiro no dicionário (case-insensitive)
+                value_lower = value.lower()
+                if value_lower in SPECIAL_TERMS:
+                    translated_rec[key] = SPECIAL_TERMS[value_lower]
+                else:
+                    try:
+                        translated_rec[key] = translator.translate(value)
+                    except:
+                        translated_rec[key] = value  # Mantém original se falhar
+            else:
+                translated_rec[key] = value
+        
+        translated_recs.append(translated_rec)
     
-    return recommendations
+    return translated_recs
